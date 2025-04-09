@@ -318,8 +318,8 @@ st.markdown("---")
 
 st.write(""" Second example With 🌞 Solar Production and storage 🔋
          
-         Optimization is to come...
-         In this case the simulation of the system is required to obtain good results.
+         This simulation is to come...
+         In the best energy management requires an optimization to obtain good results.
          It's less obvious, but not rocket science ;-) """)
 
 
