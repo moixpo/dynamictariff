@@ -173,8 +173,12 @@ df_pow_profile["Time"] = pd.to_datetime(df_pow_profile["Time"])
 # st.dataframe(df_pow_profile.head())
 
 #take the data of the power profile with the same length as the simulation
-pow_array= df_pow_profile["15min mean System Pout Consumption power (ALL) [kW]"][:length_profile].to_numpy()
-solar_array= df_pow_profile["15min mean Solar power (ALL) [kW]"][:length_profile].to_numpy()
+pow_array_all = df_pow_profile["15min mean System Pout Consumption power (ALL) [kW]"].to_numpy()
+pow_array = pow_array_all[-1-length_profile:-1]
+#pow_array = df_pow_profile["15min mean System Pout Consumption power (ALL) [kW]"][:length_profile].to_numpy()
+solar_array_all = df_pow_profile["15min mean Solar power (ALL) [kW]"].to_numpy()
+solar_array = solar_array_all[-1-length_profile:-1]
+#solar_array = df_pow_profile["15min mean Solar power (ALL) [kW]"][:length_profile].to_numpy()
 
 #Add the column to the dataframe:
 df_price_varioplus["Consumption"] = pow_array 
