@@ -9,7 +9,7 @@ import random as rnd
 
 #home made:
 from groupe_e_access_functions import *
-from meteo_access_functions import *
+#from meteo_access_functions import *
 from solarsystem import *
 
 
