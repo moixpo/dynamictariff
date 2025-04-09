@@ -41,7 +41,7 @@ with st.sidebar:
 
     st.write(""" Dynamic prices of the Groupe-E, what do you want to display? """)
 
-    tommorrow_checkbox = st.checkbox("Include tomorrow price prevision", key="graph_1")
+    tommorrow_checkbox = st.checkbox("Include tomorrow price prevision (after 18h)", key="graph_1")
     print("tommorrow_checkbox" , tommorrow_checkbox)
 
     number_of_days_user = st.number_input("Number of days in the past:", min_value=0,max_value= 20, value= 0)
