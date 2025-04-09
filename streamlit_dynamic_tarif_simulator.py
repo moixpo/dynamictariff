@@ -44,7 +44,7 @@ with st.sidebar:
     tommorrow_checkbox = st.checkbox("Include tomorrow price prevision (after 18h)", key="graph_1")
     print("tommorrow_checkbox" , tommorrow_checkbox)
 
-    number_of_days_user = st.number_input("Number of days in the past:", min_value=0,max_value= 20, value= 0)
+    number_of_days_user = st.number_input("Number of days in the past:", min_value=0,max_value= 200, value= 0)
 
     st.markdown("---")
 
@@ -124,7 +124,7 @@ df_price_varioplus["DischargeCommand"] = (df_price_varioplus["Discharge"]  <= df
 #And plot it:
 fig_levels = px.line(df_price_varioplus, 
                             x=df_price_varioplus.index, 
-                            y=["Varioplus", "Charge", "Discharge"], 
+                            y=["Varioplus", "Charge", "Discharge", "Double Tarif"], 
                             title="⚡ Electricity price with 💸 Prices Threshold", 
                             labels={"value": "Energy price (CHF/kWh)", "variable": "Legend"})
 st.plotly_chart(fig_levels)
