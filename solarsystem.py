@@ -195,7 +195,7 @@ class SolarSystem:
             self.time_steps  = np.array(range(0,len(self.load_power_profile)))*timestep  #in hours
 
 
-            #battery simulation: profiles initialisation with the same length of array for simulation
+            #battery simulation: profiles initialisation of all the profiles with the same length of array for simulation
             self.net_grid_balance_profile = self.load_power_profile-self.solar_power_profile
             self.net_power_balance_profile = self.load_power_profile - self.solar_power_profile
             self.energy_in_batt_profile = np.ones(len(self.load_power_profile))*self.soc_init/100.0*self.batt_capacity_kWh  #initialised for the whole day at the initial SOC

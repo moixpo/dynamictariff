@@ -1,3 +1,11 @@
+# 📊 Dynamic Electricity Prices with Solar and Storage 
+
+Visualizing daily electricity prices and planning **storage** with **solar** power production and **consumption** usage:
+- **Why?** Dynamic price will be a hot subject in the future with increasing solar capacity distributed in the grid and its intermittent nature. 
+- **POC?** An proof of concept of Studer (best inverters in the world!) next3 hybrid inverter control done with the Vario dynamic price of the DSO Groupe-E
+- **Click here** if you want to know more about [Vario](https://www.groupe-e.ch/fr/energie/electricite/clients-prives/vario)
+
+
 
 # SolarSystem Simulation
 
