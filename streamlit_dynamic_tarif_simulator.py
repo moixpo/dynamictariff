@@ -387,7 +387,7 @@ st.plotly_chart(fig_simstorage_profile)
 
 
 
-st.write("Second example With 🌞 Solar Production and storage 🔋")
+st.write("**Second example With 🌞 Solar Production and storage 🔋**")
 
 
 
@@ -431,7 +431,7 @@ st.write(f"The cost of electricity is  {cost_normal_profile_with_dt_with_solar_a
 fig_simstorage_profile = px.line(df_price_varioplus, 
                         x=df_price_varioplus.index, 
                         y=[ "Consumption","Grid with solar and storage", "Grid pos with solar and storage"], 
-                        title="⚡ Consumption from the grid", 
+                        title="⚡ Consumption from the grid with solar 🌞 and storage 🔋", 
                         labels={"value": "Power (kW)", "variable": "Legend"},
 )
     
@@ -477,7 +477,7 @@ st.markdown("---")
 st.write(""" Solar, storage and optimization: the smart control 🏆
          
          This simulation is to come yet...
-         In the best energy management requires an optimization to obtain good results .
+         The best energy management requires an optimization to obtain good results .
          It's less obvious, but not rocket science ;-) """)
 
 
@@ -487,8 +487,8 @@ st.write(""" Solar, storage and optimization: the smart control 🏆
 st.markdown("---")
 
 st.write(""" **Conclusion** 
-    - make your own ideas by playing with this simulator...  here are mine
-    - if you have no solar, jump to the vario prices and start to act like if you had some: loads during the day.
+    - make your own ideas by playing with this simulator...  here are mine:
+    - if you have no solar, jump to the vario prices and start to act like if you had some: loads during the day. That was the case with the consumption profile used and we see that it's cheaper
     - the vario tarif is best for installation without solar, because the low price is during the PV production
     - addition of a storage without solar can save 200 to 300CHF per year """)
 
