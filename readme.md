@@ -102,7 +102,9 @@ Returns: `[result_sim, balance_cost, cost_consumption, payback_injection]`
 
 ## License
 
-TBD
+MIT + buy me a coffee ;-)
+
+Ask me for developpements
 
 ## Author
 
