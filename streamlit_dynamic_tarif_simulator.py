@@ -43,14 +43,14 @@ with st.sidebar:
     tommorrow_checkbox = st.checkbox("Include tomorrow price prevision (after 18h)", key="graph_1")
     print("tommorrow_checkbox" , tommorrow_checkbox)
 
-    number_of_days_user = st.number_input("Number of days in the past:", min_value=0,max_value= 200, value= 0)
+    number_of_days_user = st.number_input("Number of days in the past:", min_value=0,max_value= 365, value= 0)
 
     st.markdown("---")
 
     st.write("⏱️📈 Planification with simple charge and discharge setpoint")
 
-    threshold_discharge = st.slider("⚡ Discharge when energy is expensive above (CHF/kWh): ", min_value=0.0, max_value=0.5, value=0.3, step=0.01)
-    threshold_charge  = st.slider("⚡ Charge when energy is cheap below (CHF/kWh): ", min_value=0.0, max_value=0.5, value=0.2, step=0.01)
+    threshold_discharge = st.slider("⚡ Discharge when energy is expensive above (CHF/kWh): ", min_value=0.0, max_value=0.5, value=0.25, step=0.01)
+    threshold_charge  = st.slider("⚡ Charge when energy is cheap below (CHF/kWh): ", min_value=0.0, max_value=0.5, value=0.17, step=0.01)
     st.write("between those levels nothing happens")
 
     st.markdown("---")
@@ -64,18 +64,15 @@ with st.sidebar:
     st.markdown("---")
 
     st.write("✌️ Moix P-O, 2025")
-    st.write("I explored streamlit. Nice! Quickly put in place for simple interactive dashboards...")
+    st.write("I explored streamlit. Nice! Quite easily put in place for simple interactive dashboards...")
 
 
 st.write(""" Visualizing daily electricity prices and planning **storage** with **solar** power production and **consumption** usage
-    - **Why?** Dynamic price will be a hot subject in the future with increasing solar capacity distributed in the grid and its intermittent nature. 
-    - **POC?** An proof of concept of Studer (best inverters in the world!) next3 hybrid inverter control done with the Vario dynamic price of the DSO Groupe-E
-    - **Click here** if you want to know more about [Vario](https://www.groupe-e.ch/fr/energie/electricite/clients-prives/vario)""")
+    - **Why?** Dynamic price will be a hot subject in the future with increasing solar production capacity distributed in the grid. There will be so much production in the afternoon that the way we consume must be adapted. Live with the sun... 
+    - **POC?** An proof of concept of what could be done with Studer next3 hybrid inverter (best and most flexible inverters in the world to control!). The idea is to quantify the possible gain of an control done with the dynamic price of the Swiss DSO Groupe-E (called Vario). This is available with an API and published everyday at 18h for the next day.
+    - **Info?** if you want to know more about [Vario](https://www.groupe-e.ch/fr/energie/electricite/clients-prives/vario)""")
 
 st.markdown("---")
-
-st.write("The first example of use is simple, there is a threshold level to charge the battery when the energy is cheap and threshold to discharge when the energy is expensive. ")
-
 
 #check of inputs
 if number_of_days_user == None :
@@ -98,17 +95,13 @@ now_string_timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
 df_price_varioplus = get_groupe_e_consumption_price(now, number_of_days_in_past, next_day_wanted)
 
 
-    # #Two methods to create the figure: one with matplotlib that generate a png picture and one with plotly that generates an html to insert
-    # #everything is stored in the static/image folder
-    # plot_and_store_prices_picture(df_price_varioplus)
-    # plot_and_store_prices_picture_plotly(df_price_varioplus)
-
 print("Timestamp: " + now_string_timestamp)
-    
+#df_price_varioplus.head()
+#st.dataframe(df_price_varioplus.head())
 
 
+#create the control vectors with the same lenght:
 length_profile = len(df_price_varioplus.index)
-
 threshold_charge_profile = np.ones(length_profile)* threshold_charge
 threshold_discharge_profile = np.ones(length_profile)* threshold_discharge
 
@@ -130,7 +123,21 @@ fig_levels = px.line(df_price_varioplus,
                             labels={"value": "Energy price (CHF/kWh)", "variable": "Legend"})
 st.plotly_chart(fig_levels)
 
-st.write("The comparison with the prices gives directly some setpoints for the battery. ")
+
+
+
+
+##########################################
+#Let's simulate with a battery:
+##############
+
+st.subheader(" The battery alone")
+st.write("The first use case is simple: you discovered that during the day there are some hours with cheap electricity and some with expensive. And you wonder: 💡 if I had a battery I would charge at low price and use it during the rest of the day! Then I would spare money! ")
+            
+st.write("**How much?**  Let's simulate")  
+st.write("A threshold level to charge the battery when the energy is cheap and threshold to discharge when the energy is expensive. The comparison directly gives some setpoints for the battery.")
+
+
 
 #And plot it:
 fig_activation = px.area(df_price_varioplus, 
@@ -153,14 +160,17 @@ fig_activation.update_layout(
 )
 st.plotly_chart(fig_activation)
 
+
+
+
+
 st.write("""How those order are applied to the real world?  Here a understanding of how the system work is necessary, the basic idea "charge when cheap, discharge when expensive" is just the surface of the problem.
          A few examples: """)
 st.write("""
          - the battery is charged but maybe there is no consumption in the building to discharge that energy at the high peak time.
-         - if there is solar energy, maybe it is best to let the battery be charged with solar than buying, even at low price.
+         - if there is solar energy, maybe it is best to let the battery be charged with solar than buying, even at low price.""")
 
-         *Note:* Injecting stored energy in the grid is not allowed for the moment (in Switzerland) and there is no tariff for this.""")
-st.write("""Here is a simulation on an real house load profile (real data but not time sychronised with tarif, just to see the behaviour) : """)
+st.write("""Let's see below the simulation on an real house load profile with the activation orders computed above: """)
 
 
 # Load Data
@@ -200,7 +210,7 @@ print("Price paid DT:", cost_normal_profile_with_dt)
 
 
 
-st.markdown("---")
+#st.markdown("---")
 
 #########################################################################
 #Now let's simulate the system with the solarsystem.py object:
@@ -249,6 +259,16 @@ cost_normal_profile_with_vario_with_storage = df_price_varioplus["PricePaidVario
 print("Price paid with storage:", cost_normal_profile_with_vario_with_storage)
 consumption_kWh_with_storage = df_price_varioplus["Grid with storage"].sum()/4.0
 
+
+
+#bilan batterie  
+delta_e_batt=(soc_array[-1]-soc_array[0])/100.0*battery_size_kwh  #last SOC - first SOC of the simulation
+#valorisé au prix moyen de la journée:
+mean_price_vario_with_storage = cost_normal_profile_with_vario_with_storage/consumption_kWh_with_storage
+storage_value = delta_e_batt * mean_price_vario_with_storage # np.mean(cost_normal_profile_with_vario_with_storage/consumption_kWh)
+
+
+
 # Energy Consumption Plot using Plotly
 fig_simstorage_profile = px.line(df_price_varioplus, 
                         x=df_price_varioplus.index, 
@@ -275,7 +295,7 @@ fig_soc_profile = px.area(df_price_varioplus,
                         x=df_price_varioplus.index, 
                         y=[ "SOC"], 
                         title=" 🔋 State of charge of the battery", 
-                        labels={"value": "Power (kW)", "variable": "Consumption"}
+                        labels={"value": "State of charge (%)", "variable": "Consumption"}
 )
     
 # Move legend below the graph
@@ -293,31 +313,27 @@ st.plotly_chart(fig_soc_profile)
 
 
 #st.write(" The cost of electricity for this period is " + str(cost_normal_profile_with_vario) + " CHF ")
-st.write(f" The consumption of electricity for this period is {consumption_kWh:.2f} kWh")
-st.write(f"The cost of electricity is  {cost_normal_profile_with_vario:.2f} CHF with Vario without storage, mean price is {cost_normal_profile_with_vario/consumption_kWh:.3f} CHF/kWh")
-st.write(f"The cost of electricity is  {cost_normal_profile_with_dt:.2f} CHF with Double tarif without storage")
+st.write(" **Some results**")
+st.markdown(f""" Reference
+    - The consumption of electricity for this period is {consumption_kWh:.2f} kWh 🔌
+    - The cost of electricity is  {cost_normal_profile_with_dt:.2f} CHF with Double tariff without storage
+    - The cost of electricity is  {cost_normal_profile_with_vario:.2f} CHF with Vario without storage, mean price is {cost_normal_profile_with_vario/consumption_kWh:.3f} CHF/kWh""")
 
-st.write(f" The consumption of electricity on the grid for this period is {consumption_kWh_with_storage:.2f} kWh with storage")
-st.write(f" The cost of electricity is  {cost_normal_profile_with_vario_with_storage:.2f} CHF with Vario with storage, mean price is {cost_normal_profile_with_vario_with_storage/consumption_kWh_with_storage:.3f} CHF/kWh")
-
-#bilan batterie  
-delta_e_batt=(soc_array[-1]-soc_array[0])/100.0*battery_size_kwh  #last SOC - first SOC of the simulation
-#valorisé au prix moyen de la journée:
-storage_value = delta_e_batt*np.mean(cost_normal_profile_with_vario_with_storage/consumption_kWh)
-st.write(f" The states of charge of the battery at beggining ({soc_array[0]:.0f} %) and end of the period ({soc_array[-1]:.0f} %) are not the same, that is {delta_e_batt:.1f} kWh and must be counted in the final price. With mean price, its value is {storage_value:.2f} CHF")
-st.write(f" The total gain with storage on vario tariff is {cost_normal_profile_with_vario - cost_normal_profile_with_vario_with_storage + storage_value:.2f} CHF")
-
-
-
-st.write(f" Note: the selfconsumption power of storage system of 55W, that is 1.32 kWh/day")
+st.markdown(f""" 🔋 With storage controled in price signal:
+    - The consumption of electricity on the grid for this period is {consumption_kWh_with_storage:.2f} kWh with storage
+    - The cost of electricity from grid is  {cost_normal_profile_with_vario_with_storage:.2f} CHF with Vario with storage, mean price is {cost_normal_profile_with_vario_with_storage/consumption_kWh_with_storage:.3f} CHF/kWh
+    - The states of charge of the battery at beggining ({soc_array[0]:.0f} %) and end of the period ({soc_array[-1]:.0f} %) are not the same, that is {delta_e_batt:.1f} kWh and must be counted in the final price. 
+    - The value of the stored energy left in the battery with mean price is {storage_value:.2f} CHF
+    - **TOTAL** gain with storage on vario tariff is {cost_normal_profile_with_dt - cost_normal_profile_with_vario_with_storage + storage_value:.2f} CHF """)
+   
 
 
-st.markdown("---")
+#st.metric(label="gain with storage", value=4, delta=-0.5, delta_color="inverse")
 
-st.write("""
-    Then to apply this strategy to the next3, transmit those orders with the API or locally with Modbus...
-    - Without solar: give directly the power setpoint on the grid input (AC-Source) to force charging and set discharge current to 0 when you want to avoid discharge 
-    - With solar: that is another story, see next chapter """)
+
+st.write(f" Note: the selfconsumption power of storage system of 55W, that is 1.32 kWh/day. Plus there is an efficiency of 0.95 counted.")
+
+
 
 st.markdown("---")
 
@@ -325,12 +341,12 @@ st.markdown("---")
 
 
 ######################################
-#Lets study the impact of solar in conjunction with the Vario tarif
+#Lets study the impact of solar in conjunction with the Vario tariff
 
 st.title("🌞 Solar impact")
 
 
-st.write("Lets study the impact of solar in conjunction with the Vario tarif")
+st.write("Lets study the impact of solar in conjunction with the Vario tariff")
 
 
 #reload the data with solar production:
@@ -359,10 +375,6 @@ print("Price paid DT with solar only:", cost_normal_profile_with_dt_with_solar_o
 
 consumption_kWh_with_solar_only = df_price_varioplus["Grid pos with solar only"].sum()/4.0
 
-st.write(f" The consumption of electricity  on the grid for this period is {consumption_kWh_with_solar_only:.2f} kWh with solar only")
-st.write(f" The cost of electricity bought is  {cost_normal_profile_with_vario_with_solar_only:.2f} CHF with Vario with solar only, mean price is {cost_normal_profile_with_vario_with_storage/consumption_kWh_with_storage:.3f} CHF/kWh")
-st.write(f" The cost of electricity bought is  {cost_normal_profile_with_dt_with_solar_only:.2f} CHF with Double Tarif with solar only")
-
 
 # Energy Consumption Plot using Plotly
 fig_simstorage_profile = px.line(df_price_varioplus, 
@@ -385,9 +397,16 @@ fig_simstorage_profile.update_layout(
 st.plotly_chart(fig_simstorage_profile)
 
 
+st.write(f""" Results with solar only:
+    - The consumption of electricity  on the grid for this period is {consumption_kWh_with_solar_only:.2f} kWh with solar only
+    - The cost of electricity bought is  {cost_normal_profile_with_vario_with_solar_only:.2f} CHF with Vario with solar only, mean price is {cost_normal_profile_with_vario_with_storage/consumption_kWh_with_storage:.3f} CHF/kWh
+    - The cost of electricity bought is  {cost_normal_profile_with_dt_with_solar_only:.2f} CHF with Double Tariff with solar only""")
 
+
+st.write(" \n ")
 
 st.write("**Second example With 🌞 Solar Production and storage 🔋**")
+st.write("First an standard control of storage without dynamic price optimization is assessed.")
 
 
 
@@ -421,9 +440,10 @@ consumption_kWh_with_solar_and_storage = df_price_varioplus["Grid pos with solar
 
 
 #st.write(" The cost of electricity for this period is " + str(cost_normal_profile_with_vario) + " CHF ")
-st.write(f" The consumption of electricity for this period is {consumption_kWh_with_solar_and_storage:.2f} kWh")
-st.write(f"The cost of electricity is  {cost_normal_profile_with_vario_with_solar_and_storage:.2f} CHF with Vario solar and storage, mean price is {cost_normal_profile_with_vario_with_solar_and_storage/consumption_kWh_with_solar_and_storage:.3f} CHF/kWh")
-st.write(f"The cost of electricity is  {cost_normal_profile_with_dt_with_solar_and_storage:.2f} CHF with Double tarif solar and storage")
+st.write(f""" Results with solar and storage:
+    - The consumption of electricity on the grid for this period is {consumption_kWh_with_solar_and_storage:.2f} kWh
+    - The cost of electricity is  {cost_normal_profile_with_vario_with_solar_and_storage:.2f} CHF with Vario solar and storage, mean price is {cost_normal_profile_with_vario_with_solar_and_storage/consumption_kWh_with_solar_and_storage:.3f} CHF/kWh
+    - The cost of electricity is  {cost_normal_profile_with_dt_with_solar_and_storage:.2f} CHF with Double tariff solar and storage""")
 
 
 
@@ -453,7 +473,7 @@ fig_soc_profile = px.area(df_price_varioplus,
                         x=df_price_varioplus.index, 
                         y=[ "SOC solar"], 
                         title=" 🔋 State of charge of the battery", 
-                        labels={"value": "Power (kW)", "variable": "Consumption"}
+                        labels={"value": "State of charge (%)", "variable": "Consumption"}
 )
     
 # Move legend below the graph
@@ -471,7 +491,31 @@ st.plotly_chart(fig_soc_profile)
 
 
 
+
+
+
+
 st.markdown("---")
+
+
+st.title("Conclusion")
+st.write(""" Make your own ideas by playing with this simulator...  here are mine:
+         
+    - If you have no solar, jump to the vario prices and start to act like if you had some: put your loads during the day. That was the case with the consumption profile used and we see that it's cheaper. Let's consume the cheap solar of your neighbors!
+    - Addition of a storage without solar can save 200 to 300CHF per year with Vario 
+    - The double tariff is the best for houses with solar installed, because the low price is during the PV production and during that time you have your own energy to cover the loads
+    - With houses with solar and storage, the difference between one and the other tariff is not big but an smart control has not been tested yet... that can make a difference during the winter when the battery is there but there is not much solar.
+    """)
+
+st.markdown("---")
+
+
+
+
+st.markdown("---")
+
+st.title("Next steps 👨‍💻")
+
 
 
 st.write(""" Solar, storage and optimization: the smart control 🏆
@@ -480,44 +524,46 @@ st.write(""" Solar, storage and optimization: the smart control 🏆
          The best energy management requires an optimization to obtain good results .
          It's less obvious, but not rocket science ;-) """)
 
-
-
-
-
 st.markdown("---")
 
-st.write(""" **Conclusion** 
-    - make your own ideas by playing with this simulator...  here are mine:
-    - if you have no solar, jump to the vario prices and start to act like if you had some: loads during the day. That was the case with the consumption profile used and we see that it's cheaper
-    - the vario tarif is best for installation without solar, because the low price is during the PV production
-    - addition of a storage without solar can save 200 to 300CHF per year """)
-
-st.markdown("---")
-
-# Show dataset preview
-st.title("📋 **Data Overview, for debug purpose**")
-st.dataframe(df_price_varioplus.head())
-
-st.dataframe(df_price_varioplus.tail())
+st.write("""
+    Real world control: to apply this strategy to the next3, transmit the orders with the API or locally with Modbus... 
+    - Without solar: give directly the power setpoint on the grid input (AC-Source) to force charging and set discharge current to 0 when you want to avoid discharge 
+    - With solar: that is another story, there must be the optimization first, ...see you later """)
 
 
-# Combined Solar Power and Energy Consumption Plot using Plotly
-if "15min mean System Pout Consumption power (ALL) [kW]" in df_pow_profile.columns:
-    fig_combined = px.line(df_pow_profile, x="Time", 
-                            y=["15min mean Solar power (ALL) [kW]", "15min mean System Pout Consumption power (ALL) [kW]"], 
-                            title="ORIGINAL DATA 🌞 Solar Production vs ⚡ Energy Consumption", 
-                            labels={"value": "Energy (kWh)", "variable": "Legend"},
-                            color_discrete_sequence=["lightcoral", "lightblue"] )
+
+
+
+
+# st.markdown("---")
+# st.markdown("---")
+
+# # Show dataset preview
+# st.title("📋 **Data Overview, for debug purpose**")
+# st.dataframe(df_price_varioplus.head())
+
+# st.dataframe(df_price_varioplus.tail())
+
+
+# # Combined Solar Power and Energy Consumption Plot using Plotly
+# if "15min mean System Pout Consumption power (ALL) [kW]" in df_pow_profile.columns:
+#     fig_combined = px.line(df_pow_profile, x="Time", 
+#                             y=["15min mean Solar power (ALL) [kW]", "15min mean System Pout Consumption power (ALL) [kW]"], 
+#                             title="ORIGINAL DATA 🌞 Solar Production vs ⚡ Energy Consumption", 
+#                             labels={"value": "Energy (kWh)", "variable": "Legend"},
+#                             color_discrete_sequence=["lightcoral", "lightblue"] )
     
-    # Move legend below the graph
-    fig_combined.update_layout(
-        legend=dict(
-            orientation="h",
-            yanchor="top",
-            y=-0.2,  # Position below the graph
-            xanchor="center",
-            x=0.1
-        )
-    )
-    st.plotly_chart(fig_combined)
+#     # Move legend below the graph
+#     fig_combined.update_layout(
+#         legend=dict(
+#             orientation="h",
+#             yanchor="top",
+#             y=-0.2,  # Position below the graph
+#             xanchor="center",
+#             x=0.1
+#         )
+#     )
+#     st.plotly_chart(fig_combined)
+
 
