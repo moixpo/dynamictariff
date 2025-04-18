@@ -58,6 +58,8 @@ with st.sidebar:
     battery_size_kwh = st.slider("Battery capacity (kWh): ", min_value=1.0, max_value=20.0, value=10.0, step=1.0)
     battery_charge_power_kw = st.slider("Battery max charge power (kW): ", min_value=1.0, max_value=20.0, value=10.0, step=1.0)
     st.write("C/2 would be a reasonable charge/discharge limit, note it is applied all day")
+    soc_init = st.slider("Battery initial SOC (%): ", min_value=20.0, max_value=100.0, value=20.0, step=1.0)
+
     st.markdown("---")
     st.write("Scale solar used for simulation, original (100%) is a 10kWp installation")
     solar_scale = st.slider("🌞 Solar insalled (%): ", min_value=10.0, max_value=200.0, value=100.0, step=10.0)
@@ -170,7 +172,7 @@ st.write("""
          - the battery is charged but maybe there is no consumption in the building to discharge that energy at the high peak time.
          - if there is solar energy, maybe it is best to let the battery be charged with solar than buying, even at low price.""")
 
-st.write("""Let's see below the simulation on an real house load profile with the activation orders computed above: """)
+st.write("""Let's see below the simulation on an real house load profile with the activation orders computed above. Change the simuation parameters on the left (period of simulation, size of battery,..): """)
 
 
 # Load Data
@@ -222,9 +224,10 @@ solar_syst_Vex.pv_kW_installed = 9.24 #power installed on the roof
 solar_syst_Vex.roof_orientation = -10 # 0=S, 90°=W, -90°=E, -180°=N (or -180)
 solar_syst_Vex.roof_slope = 20.0
 solar_syst_Vex.batt_capacity_kWh = battery_size_kwh #10*1 # in kWh
+solar_syst_Vex.soc_init = soc_init # in %
 solar_syst_Vex.max_power_charge = battery_charge_power_kw #to update the max charge used by default independently of the battery size
 solar_syst_Vex.max_power_discharge = -battery_charge_power_kw
-solar_syst_Vex.max_inverter_power = 15 #kW
+solar_syst_Vex.max_inverter_power = 15 #kW  for the next3
 solar_syst_Vex.comment = "installed in June 2022"
 
 
@@ -267,6 +270,7 @@ delta_e_batt=(soc_array[-1]-soc_array[0])/100.0*battery_size_kwh  #last SOC - fi
 mean_price_vario_with_storage = cost_normal_profile_with_vario_with_storage/consumption_kWh_with_storage
 storage_value = delta_e_batt * mean_price_vario_with_storage # np.mean(cost_normal_profile_with_vario_with_storage/consumption_kWh)
 
+gain_dt_to_vario = cost_normal_profile_with_dt - cost_normal_profile_with_vario_with_storage + storage_value
 
 
 # Energy Consumption Plot using Plotly
@@ -324,7 +328,7 @@ st.markdown(f""" 🔋 With storage controled in price signal:
     - The cost of electricity from grid is  {cost_normal_profile_with_vario_with_storage:.2f} CHF with Vario with storage, mean price is {cost_normal_profile_with_vario_with_storage/consumption_kWh_with_storage:.3f} CHF/kWh
     - The states of charge of the battery at beggining ({soc_array[0]:.0f} %) and end of the period ({soc_array[-1]:.0f} %) are not the same, that is {delta_e_batt:.1f} kWh and must be counted in the final price. 
     - The value of the stored energy left in the battery with mean price is {storage_value:.2f} CHF
-    - **TOTAL** gain with storage on vario tariff is {cost_normal_profile_with_dt - cost_normal_profile_with_vario_with_storage + storage_value:.2f} CHF """)
+    - **TOTAL gain** with storage and use of vario tariff is {gain_dt_to_vario:.2f} CHF, that is  {( gain_dt_to_vario / cost_normal_profile_with_dt * 100.0) : .1f} % gain """)
    
 
 
@@ -406,7 +410,7 @@ st.write(f""" Results with solar only:
 st.write(" \n ")
 
 st.write("**Second example With 🌞 Solar Production and storage 🔋**")
-st.write("First an standard control of storage without dynamic price optimization is assessed.")
+st.write("First a standard control of storage (charge with solar excess) is done. There is no optimization done for the price.")
 
 
 
@@ -503,11 +507,14 @@ st.write(""" Make your own ideas by playing with this simulator...  here are min
          
     - If you have no solar, jump to the vario prices and start to act like if you had some: put your loads during the day. That was the case with the consumption profile used and we see that it's cheaper. Let's consume the cheap solar of your neighbors!
     - Addition of a storage without solar can save 200 to 300CHF per year with Vario 
-    - The double tariff is the best for houses with solar installed, because the low price is during the PV production and during that time you have your own energy to cover the loads
+    - The double tariff is the best for houses with solar installed, because the low price is mainly during the PV production and during that time you have your own energy to cover the loads
     - With houses with solar and storage, the difference between one and the other tariff is not big but an smart control has not been tested yet... that can make a difference during the winter when the battery is there but there is not much solar.
+    - This is with Vario of Groupe-E that is based on the grid loading and that could be very different with an dynamic tarif based on market price, don't make a generalization.
+         
+
     """)
 
-st.markdown("---")
+
 
 
 
@@ -521,15 +528,20 @@ st.title("Next steps 👨‍💻")
 st.write(""" Solar, storage and optimization: the smart control 🏆
          
          This simulation is to come yet...
-         The best energy management requires an optimization to obtain good results .
-         It's less obvious, but not rocket science ;-) """)
-
-st.markdown("---")
-
-st.write("""
-    Real world control: to apply this strategy to the next3, transmit the orders with the API or locally with Modbus... 
-    - Without solar: give directly the power setpoint on the grid input (AC-Source) to force charging and set discharge current to 0 when you want to avoid discharge 
-    - With solar: that is another story, there must be the optimization first, ...see you later """)
+         The best energy management requires an optimization to obtain good results . 
+         This will be perfomed with day by day optimization.
+         It's less obvious, but not rocket science ;-) 
+         
+         Then there will be real world control: to apply this strategy to the next3, 
+         transmit the orders with the API or locally with Modbus... 
+         - Without solar: give directly the power setpoint on the grid input (AC-Source) 
+            to force charging and set discharge current to 0 when you want to avoid discharge 
+         - With solar: choose the time when to charge, discharge and force charge from the grid
+         - that was already tested here: https://github.com/moixpo/nxcontrol
+         - a good control sould take the weather forcast into account, that was tested with Openmeteo
+             but now all the pieces of the puzzle must be put together...  
+         
+         ...see you later """)
 
 
 
