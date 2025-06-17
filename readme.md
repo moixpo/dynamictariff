@@ -108,5 +108,5 @@ Ask me for developpements
 
 ## Author
 
-Moix P-O  
+Moix Pierre-Olivier  
 Last updated: August 6, 2024
