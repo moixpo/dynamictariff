@@ -6,7 +6,7 @@ Visualizing daily electricity prices and planning **storage** with **solar** pow
 - **Click here** if you want to know more about [Vario](https://www.groupe-e.ch/fr/energie/electricite/clients-prives/vario)
 
 # Deployed on 
-[Click here to go to streamlit.app]([https://dynamictariff.streamlit.app/)
+[Click here to go to streamlit.app](https://dynamictariff.streamlit.app/)
 
 # SolarSystem Simulation
 
