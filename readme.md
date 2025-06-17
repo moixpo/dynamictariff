@@ -5,7 +5,8 @@ Visualizing daily electricity prices and planning **storage** with **solar** pow
 - **POC?** An proof of concept of Studer (best inverters in the world!) next3 hybrid inverter control done with the Vario dynamic price of the DSO Groupe-E
 - **Click here** if you want to know more about [Vario](https://www.groupe-e.ch/fr/energie/electricite/clients-prives/vario)
 
-
+# Deployed on 
+[Click here to go to streamlit.app]([https://dynamictariff.streamlit.app/)
 
 # SolarSystem Simulation
 
