@@ -3,6 +3,8 @@
 Created on Mon Feb  5 17:36:18 2024
 Mod: 27.05.2024
 @author: pierre-olivier.moix
+
+new version v2 of the API in 2026: https://api.tariffs.groupe-e.ch/v2/tariffs/
 """
 
 
@@ -27,6 +29,9 @@ Mod: 27.05.2024
 #   Exemple de requête pour le tarif vario_grid pour la journée du 06.09.2023 : (see document)
 #
 #####################################
+
+
+
 
 
 #from datetime import date, datetime, timedelta
@@ -75,6 +80,7 @@ def get_groupe_e_consumption_price(dt, number_of_days_in_past=0, next_day_wanted
     ARCHIVE = '/v1/tariffs/vario_grid?start_timestamp={}&end_timestamp={}'  #date to be updated
     ARCHIVE = '/v1/tariffs?start_timestamp={}&end_timestamp={}'  #date to be updated
     
+
     API_URL = ENDPOINT+ARCHIVE
     price_unit = "CHF/kWh"
     
@@ -99,7 +105,7 @@ def get_groupe_e_consumption_price(dt, number_of_days_in_past=0, next_day_wanted
     
     #print(' \n *** Prices for electricity retail Variogrid of GROUPE-E:')   
     for hour_slice in data: 
-        #print( hour_slice['start_timestamp']  + ' ' +  str(hour_slice['vario_grid']) + '  ' + hour_slice["unit"])
+        print( hour_slice['start_timestamp']  + ' ' +  str(hour_slice['vario_grid']) + '  ' + hour_slice["unit"])
         
         #Create a dictionnary with the data:
         hour_slice["vario_grid"] #for ESIOS: peninsula, canarias, balear
@@ -141,6 +147,91 @@ def get_groupe_e_consumption_price(dt, number_of_days_in_past=0, next_day_wanted
 
 
 
+def get_groupe_e_consumption_price_v2(dt, number_of_days_in_past=0, next_day_wanted=False):
+    '''
+    Fetch Groupe-E v2 tariffs and return a dataframe with the nested API values.
+    The v2 payload contains a top-level publication timestamp and a prices array,
+    where each price item exposes grid and integrated price lists.
+    '''
+
+    today_em = dt
+    begining_em = dt - datetime.timedelta(days=number_of_days_in_past)
+
+    if next_day_wanted == False:
+        tomorrow_em = dt + datetime.timedelta(days=1)
+    else:
+        tomorrow_em = dt + datetime.timedelta(days=2)
+
+    start_dt = begining_em.strftime("%Y-%m-%dT00:00:00+02:00")
+    end_dt = tomorrow_em.strftime("%Y-%m-%dT00:00:00+02:00")
+
+    endpoint = 'https://api.tariffs.groupe-e.ch'
+    archive = '/v2/tariffs?start_timestamp={}&end_timestamp={}'
+    url = (endpoint + archive).format(start_dt, end_dt)
+
+    res = requests.get(url, timeout=30)
+
+    if res.status_code != 200:
+        raise Exception(res.reason)
+
+    payload = res.json()
+    prices = payload.get("prices", []) if isinstance(payload, dict) else []
+
+    price_grid = []
+    price_varioplus = []
+    time_resp = []
+    price_dt = []
+
+    #list the values of the first price item to understand the structure of the data, then we will loop over all the items to fill the lists for the dataframe:
+    # 
+    print(prices[0])
+    
+    for hour_slice in prices:
+        print( hour_slice['start_timestamp']  + ' ' +  str(hour_slice['integrated'][0]['value']) + '  ' + hour_slice['integrated'][0]['unit'])
+
+        #take the first item of the grid and integrated lists if they exist, otherwise use NaN
+        grid_item = hour_slice.get("grid", [{}])
+        integrated_item = hour_slice.get("integrated", [{}])
+        electricity_item = hour_slice.get("electricity", [{}])  #not used for now but it is the one that contains the price of the electricity without the grid fees, it is not used for now but it could be in the future if we want to separate the grid fees from the electricity price
+        
+        grid_value = np.nan
+        integrated_value = np.nan
+        electricity_value = np.nan
+
+        if len(grid_item) > 0 and isinstance(grid_item[0], dict):
+            grid_value = float(grid_item[0].get("value", np.nan))
+        if len(integrated_item) > 0 and isinstance(integrated_item[0], dict):
+            integrated_value = float(integrated_item[0].get("value", np.nan))
+        if len(electricity_item) > 0 and isinstance(electricity_item[0], dict):
+            electricity_value = float(electricity_item[0].get("value", np.nan))
+
+        price_grid.append(grid_value)
+        price_varioplus.append(integrated_value)
+        price_dt.append(electricity_value)
+        time_resp.append(hour_slice.get('start_timestamp'))
+
+    fmt = "%Y-%m-%dT%H:%M:%S%z"
+    timestamps_converted = []
+    for timestamp in time_resp:
+        timestamps_converted.append(datetime.datetime.strptime(timestamp, fmt))
+
+    time_quarters = np.arange(0, len(price_varioplus) / 4, 0.25)
+    df_price_varioplus = pd.DataFrame(
+        {
+            "Grid": price_grid,
+            "Varioplus": price_varioplus,
+            "Double Tarif": price_dt,
+            "Time in hours": time_quarters,
+        },
+        index=timestamps_converted,
+    )
+    df_price_varioplus.attrs["publication_timestamp"] = payload.get("publication_timestamp")
+
+    return df_price_varioplus
+
+
+
+
 def plot_and_store_prices_picture(df_price_varioplus): 
     '''
     An matplotlib figure is created and saved in png format to be displayed in the web page
@@ -152,7 +243,7 @@ def plot_and_store_prices_picture(df_price_varioplus):
                                 figsize=(FIGSIZE_WIDTH, FIGSIZE_HEIGHT))
     
 
-    axes_prices.plot(df_price_varioplus['Time in hours'].values, df_price_varioplus[["Double Tarif", "Varioplus"]].values) #,color='b'
+    axes_prices.plot(df_price_varioplus['Time in hours'].values, df_price_varioplus[["Double Tarif", "Varioplus", "Grid"]].values) #,color='b'
     axes_prices.set_ylabel('Price [CHF/kWh]', fontsize=12)
     axes_prices.set_xlabel('Time [h]', fontsize=12)
     axes_prices.set_title('Dynamic tariff Groupe-E, today: '+str(now)[0:10], fontsize=12, weight="bold")
@@ -208,8 +299,11 @@ def main():
     now = datetime.datetime.now()
     number_of_days_in_past = 1
     next_day_wanted = True
-    df_price_varioplus = get_groupe_e_consumption_price(now, number_of_days_in_past, next_day_wanted)
+    df_price_varioplus = get_groupe_e_consumption_price_v2(now, number_of_days_in_past, next_day_wanted)
     
+    print("dataframe head: ")
+    print(df_price_varioplus.columns)
+
     price_varioplus = df_price_varioplus['Varioplus'].values
     price_dt_plus = df_price_varioplus['Double Tarif'].values
     time_resp= df_price_varioplus['Time in hours'].values
@@ -225,7 +319,7 @@ def main():
 
     plt.show() #for matplotlib
 
-    fig_prices_plotly.show() # for plotly
+    fig_prices_plotly.show(renderer="browser") # for plotly
 
 
 

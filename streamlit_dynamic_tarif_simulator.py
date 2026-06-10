@@ -1,4 +1,4 @@
-#to run the app: streamlit run streamlit_test3.py
+#to run the app: streamlit run streamlit_dynamic_tarif_simulator.py
 
 import streamlit as st
 import pandas as pd
@@ -94,8 +94,11 @@ now = datetime.datetime.now()
 now_string_timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
 
 #API to the electricity price:
-df_price_varioplus = get_groupe_e_consumption_price(now, number_of_days_in_past, next_day_wanted)
+df_price_varioplus = get_groupe_e_consumption_price_v2(now, number_of_days_in_past, next_day_wanted)
 
+#adaptation: with the new API the double tarif is not included anymore, I added it in the dataframe with NaN
+#let's replace it with the mean price of the vario for approximation, that is not bad:
+df_price_varioplus["Double Tarif"] = df_price_varioplus["Varioplus"].mean()
 
 print("Timestamp: " + now_string_timestamp)
 #df_price_varioplus.head()
