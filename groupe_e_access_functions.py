@@ -40,6 +40,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px
+import plotly.graph_objects as go
 
 import requests
 
@@ -136,7 +137,7 @@ def get_groupe_e_consumption_price(dt, number_of_days_in_past=0, next_day_wanted
 
     #plotly use pandas dataframes to handle data, so let's recreate one that is a proper time serie:
     time_quarters = np.arange(0,len(price_varioplus)/4,0.25) #that is the time in hours
-    df_price_varioplus = pd.DataFrame({"Varioplus":price_varioplus, "Double Tarif": price_dt_plus,"Time in hours":time_quarters}, index=timestamps_converted)
+    df_price_varioplus = pd.DataFrame({"Varioplus":price_varioplus, "Double Tariff": price_dt_plus,"Time in hours":time_quarters}, index=timestamps_converted)
 
 
     return df_price_varioplus 
@@ -220,7 +221,7 @@ def get_groupe_e_consumption_price_v2(dt, number_of_days_in_past=0, next_day_wan
         {
             "Grid": price_grid,
             "Varioplus": price_varioplus,
-            "Double Tarif": price_dt,
+            "Double Tariff": price_dt,
             "Time in hours": time_quarters,
         },
         index=timestamps_converted,
@@ -243,7 +244,7 @@ def plot_and_store_prices_picture(df_price_varioplus):
                                 figsize=(FIGSIZE_WIDTH, FIGSIZE_HEIGHT))
     
 
-    axes_prices.plot(df_price_varioplus['Time in hours'].values, df_price_varioplus[["Double Tarif", "Varioplus", "Grid"]].values) #,color='b'
+    axes_prices.plot(df_price_varioplus['Time in hours'].values, df_price_varioplus[["Double Tariff", "Varioplus", "Grid"]].values) #,color='b'
     axes_prices.set_ylabel('Price [CHF/kWh]', fontsize=12)
     axes_prices.set_xlabel('Time [h]', fontsize=12)
     axes_prices.set_title('Dynamic tariff Groupe-E, today: '+str(now)[0:10], fontsize=12, weight="bold")
@@ -261,16 +262,30 @@ def plot_and_store_prices_picture_plotly(df_price_varioplus):
     Here 2 plots in plotly format are realised and saved in an html file
     One is returned for display in tests
     '''
-    #now = datetime.datetime.now()
-    fig_prices = px.line(df_price_varioplus,  y=["Double Tarif", "Varioplus"],
-                         labels={"index" : "", 
-                                 "value" : "Electricity price [CHF/kWh]",
-                                 "Double Tarif": "Standard double tarif [CHF/kWh]",
-                                 "Varioplus" : "Dynamic price [CHF/kWh]"
-                                 },
-                         title="Groupe-E variable electricity price",
-                         template="seaborn"
-                        )  
+    fig_prices = go.Figure()
+    fig_prices.add_trace(
+        go.Scatter(
+            x=df_price_varioplus.index,
+            y=df_price_varioplus["Double Tariff"],
+            mode="lines",
+            name="Standard tariff [CHF/kWh]",
+        )
+    )
+    fig_prices.add_trace(
+        go.Scatter(
+            x=df_price_varioplus.index,
+            y=df_price_varioplus["Varioplus"],
+            mode="lines",
+            name="Dynamic price [CHF/kWh]",
+        )
+    )
+    fig_prices.update_layout(
+        title="Groupe-E variable electricity price",
+        xaxis_title="",
+        yaxis_title="Electricity price [CHF/kWh]",
+        template="seaborn",
+        legend_title_text="",
+    )
 
 
     #test with histogram
@@ -305,7 +320,7 @@ def main():
     print(df_price_varioplus.columns)
 
     price_varioplus = df_price_varioplus['Varioplus'].values
-    price_dt_plus = df_price_varioplus['Double Tarif'].values
+    price_dt_plus = df_price_varioplus['Double Tariff'].values
     time_resp= df_price_varioplus['Time in hours'].values
 
     print(time_resp[0:5])

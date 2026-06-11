@@ -3,6 +3,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import datetime
 import random as rnd
@@ -56,7 +57,7 @@ with st.sidebar:
     st.markdown("---")
     st.write("🔋 Storage used for simulation")
     battery_size_kwh = st.slider("Battery capacity (kWh): ", min_value=1.0, max_value=20.0, value=10.0, step=1.0)
-    battery_charge_power_kw = st.slider("Battery max charge power (kW): ", min_value=1.0, max_value=20.0, value=10.0, step=1.0)
+    battery_charge_power_kw = st.slider("Battery max charge power (kW): ", min_value=1.0, max_value=20.0, value=5.0, step=1.0)
     st.write("C/2 would be a reasonable charge/discharge limit, note it is applied all day")
     soc_init = st.slider("Battery initial SOC (%): ", min_value=20.0, max_value=100.0, value=20.0, step=1.0)
 
@@ -71,7 +72,7 @@ with st.sidebar:
 
 st.write(""" Visualizing daily electricity prices and planning **storage** with **solar** power production and **consumption** usage
     - **Why?** Dynamic price will be a hot subject in the future with increasing solar production capacity distributed in the grid. There will be so much production in the afternoon that the way we consume must be adapted. Live with the sun... 
-    - **POC?** An proof of concept of what could be done with Studer next3 hybrid inverter (best and most flexible inverters in the world to control!). The idea is to quantify the possible gain of an control done with the dynamic price of the Swiss DSO Groupe-E (called Vario). This is available with an API and published everyday at 18h for the next day.
+    - **POC?** An proof of concept of what could be done with Studer next3 hybrid inverter (best and most flexible inverters in the world to control!). The idea is to quantify the possible gain of an control done with the dynamic price of the Swiss DSO Groupe-E (called Vario). This is available with an API and published everyday at 18h for the next day. Note that with the new version of the API v2, the standard tariff is not included anymore, but I replaced it with the mean price of the vario for approximation of a standard tariff.
     - **Info?** if you want to know more about [Vario](https://www.groupe-e.ch/fr/energie/electricite/clients-prives/vario)""")
 
 st.markdown("---")
@@ -96,9 +97,9 @@ now_string_timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
 #API to the electricity price:
 df_price_varioplus = get_groupe_e_consumption_price_v2(now, number_of_days_in_past, next_day_wanted)
 
-#adaptation: with the new API the double tarif is not included anymore, I added it in the dataframe with NaN
+#adaptation for v2: with the new API the double tariff is not included anymore, I added it in the dataframe with NaN
 #let's replace it with the mean price of the vario for approximation, that is not bad:
-df_price_varioplus["Double Tarif"] = df_price_varioplus["Varioplus"].mean()
+df_price_varioplus["Double Tariff"] = df_price_varioplus["Varioplus"].mean()
 
 print("Timestamp: " + now_string_timestamp)
 #df_price_varioplus.head()
@@ -121,11 +122,47 @@ df_price_varioplus["DischargeCommand"] = (df_price_varioplus["Discharge"]  <= df
 
 
 #And plot it:
-fig_levels = px.line(df_price_varioplus, 
-                            x=df_price_varioplus.index, 
-                            y=["Varioplus", "Charge", "Discharge", "Double Tarif"], 
-                            title="⚡ Electricity price with 💸 Prices Threshold", 
-                            labels={"value": "Energy price (CHF/kWh)", "variable": "Legend"})
+fig_levels = go.Figure()
+fig_levels.add_trace(
+    go.Scatter(
+        x=df_price_varioplus.index,
+        y=df_price_varioplus["Varioplus"],
+        mode="lines",
+        name="Varioplus",
+    )
+)
+fig_levels.add_trace(
+    go.Scatter(
+        x=df_price_varioplus.index,
+        y=df_price_varioplus["Charge"],
+        mode="lines",
+        name="Charge threshold",
+        line=dict(dash="dash"),
+    )
+)
+fig_levels.add_trace(
+    go.Scatter(
+        x=df_price_varioplus.index,
+        y=df_price_varioplus["Discharge"],
+        mode="lines",
+        name="Discharge threshold",
+        line=dict(dash="dash"),
+    )
+)
+fig_levels.add_trace(
+    go.Scatter(
+        x=df_price_varioplus.index,
+        y=df_price_varioplus["Double Tariff"],
+        mode="lines",
+        name="Standard Tariff",
+    )
+)
+fig_levels.update_layout(
+    title="⚡ Electricity price with 💸 Prices Threshold",
+    xaxis_title="",
+    yaxis_title="Energy price (CHF/kWh)",
+    legend_title_text="",
+)
 st.plotly_chart(fig_levels)
 
 
@@ -207,7 +244,7 @@ df_price_varioplus["PricePaidVario"] = (df_price_varioplus["Consumption"] * df_p
 cost_normal_profile_with_vario = df_price_varioplus["PricePaidVario"].sum()
 print("Price paid:", cost_normal_profile_with_vario)
 
-df_price_varioplus["PricePaidDT"] = (df_price_varioplus["Consumption"] * df_price_varioplus["Double Tarif"]/4.0)   #note, result is true/false, and .astype(int) convert to 1/0
+df_price_varioplus["PricePaidDT"] = (df_price_varioplus["Consumption"] * df_price_varioplus["Double Tariff"]/4.0)   #note, result is true/false, and .astype(int) convert to 1/0
 cost_normal_profile_with_dt = df_price_varioplus["PricePaidDT"].sum()
 print("Price paid DT:", cost_normal_profile_with_dt)
 
@@ -323,7 +360,7 @@ st.plotly_chart(fig_soc_profile)
 st.write(" **Some results**")
 st.markdown(f""" Reference
     - The consumption of electricity for this period is {consumption_kWh:.2f} kWh 🔌
-    - The cost of electricity is  {cost_normal_profile_with_dt:.2f} CHF with Double tariff without storage
+    - The cost of electricity is  {cost_normal_profile_with_dt:.2f} CHF with standard tariff without storage
     - The cost of electricity is  {cost_normal_profile_with_vario:.2f} CHF with Vario without storage, mean price is {cost_normal_profile_with_vario/consumption_kWh:.3f} CHF/kWh""")
 
 st.markdown(f""" 🔋 With storage controled in price signal:
@@ -375,7 +412,7 @@ df_price_varioplus["Grid pos with solar only"] = grid_power_pos_with_solar_array
 df_price_varioplus["PricePaidVarioWithSolarOnly"] = (df_price_varioplus["Grid pos with solar only"] * df_price_varioplus["Varioplus"]/4.0)   #note, result is true/false, and .astype(int) convert to 1/0
 cost_normal_profile_with_vario_with_solar_only = df_price_varioplus["PricePaidVarioWithSolarOnly"].sum()
 print("Price paid with solar only:", cost_normal_profile_with_vario_with_solar_only)
-df_price_varioplus["PricePaidDTSolarOnly"] = (df_price_varioplus["Grid pos with solar only"] * df_price_varioplus["Double Tarif"]/4.0)   #note, result is true/false, and .astype(int) convert to 1/0
+df_price_varioplus["PricePaidDTSolarOnly"] = (df_price_varioplus["Grid pos with solar only"] * df_price_varioplus["Double Tariff"]/4.0)   #note, result is true/false, and .astype(int) convert to 1/0
 cost_normal_profile_with_dt_with_solar_only = df_price_varioplus["PricePaidDTSolarOnly"].sum()
 print("Price paid DT with solar only:", cost_normal_profile_with_dt_with_solar_only)
 
@@ -407,7 +444,7 @@ st.plotly_chart(fig_simstorage_profile)
 st.write(f""" Results with solar only:
     - The consumption of electricity  on the grid for this period is {consumption_kWh_with_solar_only:.2f} kWh with solar only
     - The cost of electricity bought is  {cost_normal_profile_with_vario_with_solar_only:.2f} CHF with Vario with solar only, mean price is {cost_normal_profile_with_vario_with_storage/consumption_kWh_with_storage:.3f} CHF/kWh
-    - The cost of electricity bought is  {cost_normal_profile_with_dt_with_solar_only:.2f} CHF with Double Tariff with solar only""")
+    - The cost of electricity bought is  {cost_normal_profile_with_dt_with_solar_only:.2f} CHF with Standard Tariff with solar only""")
 
 
 st.write(" \n ")
@@ -437,7 +474,7 @@ df_price_varioplus["SOC solar"] = soc_array
 df_price_varioplus["PricePaidVarioWithSolarStorage"] = (df_price_varioplus["Grid pos with solar and storage"] * df_price_varioplus["Varioplus"]/4.0)   #note, result is true/false, and .astype(int) convert to 1/0
 cost_normal_profile_with_vario_with_solar_and_storage = df_price_varioplus["PricePaidVarioWithSolarStorage"].sum()
 print("Price paid with solar and storage:", cost_normal_profile_with_vario_with_solar_and_storage)
-df_price_varioplus["PricePaidDTSolarStorage"] = (df_price_varioplus["Grid pos with solar and storage"] * df_price_varioplus["Double Tarif"]/4.0)   #note, result is true/false, and .astype(int) convert to 1/0
+df_price_varioplus["PricePaidDTSolarStorage"] = (df_price_varioplus["Grid pos with solar and storage"] * df_price_varioplus["Double Tariff"]/4.0)   #note, result is true/false, and .astype(int) convert to 1/0
 cost_normal_profile_with_dt_with_solar_and_storage = df_price_varioplus["PricePaidDTSolarStorage"].sum()
 print("Price paid DT with solar only:", cost_normal_profile_with_dt_with_solar_only)
 
@@ -450,7 +487,7 @@ consumption_kWh_with_solar_and_storage = df_price_varioplus["Grid pos with solar
 st.write(f""" Results with solar and storage:
     - The consumption of electricity on the grid for this period is {consumption_kWh_with_solar_and_storage:.2f} kWh
     - The cost of electricity is  {cost_normal_profile_with_vario_with_solar_and_storage:.2f} CHF with Vario solar and storage, mean price is {cost_normal_profile_with_vario_with_solar_and_storage/consumption_kWh_with_solar_and_storage:.3f} CHF/kWh
-    - The cost of electricity is  {cost_normal_profile_with_dt_with_solar_and_storage:.2f} CHF with Double tariff solar and storage""")
+    - The cost of electricity is  {cost_normal_profile_with_dt_with_solar_and_storage:.2f} CHF with standard tariff solar and storage""")
 
 
 
@@ -510,7 +547,7 @@ st.write(""" Make your own ideas by playing with this simulator...  here are min
          
     - If you have no solar, jump to the vario prices and start to act like if you had some: put your loads during the day. That was the case with the consumption profile used and we see that it's cheaper. Let's consume the cheap solar of your neighbors!
     - Addition of a storage without solar can save 200 to 300CHF per year with Vario 
-    - The double tariff is the best for houses with solar installed, because the low price is mainly during the PV production and during that time you have your own energy to cover the loads
+    - The standard tariff is the best for houses with solar installed, because the low price is mainly during the PV production and during that time you have your own energy to cover the loads
     - With houses with solar and storage, the difference between one and the other tariff is not big but an smart control has not been tested yet... that can make a difference during the winter when the battery is there but there is not much solar.
     - This is with Vario of Groupe-E that is based on the grid loading and that could be very different with an dynamic tarif based on market price, don't make a generalization.
          
